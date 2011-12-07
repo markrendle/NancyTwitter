@@ -8,8 +8,8 @@
 
     public class AuthModule : NancyModule
     {
-        const string ConsumerKey = "62LkhQSYQxPbY1oKgbv0w";
-        const string ConsumerSecret = "NyIi7vkNxhHAXTjGf751Gx8HBeJTeRNQf4tUUBMc";
+        const string ConsumerKey = "";
+        const string ConsumerSecret = "";
         private static readonly Uri TwitterCallback = new Uri("http://localhost:3000/auth/twitter_callback");
 
         public AuthModule(ITwitter twitter) : base("/auth")

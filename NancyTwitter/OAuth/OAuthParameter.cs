@@ -22,7 +22,7 @@ namespace NancyTwitter.OAuth
 
         public int CompareTo(OAuthParameter other)
         {
-            return _key.CompareTo(other._key);
+            return String.CompareOrdinal(_key, other._key);
         }
 
         public override string  ToString()

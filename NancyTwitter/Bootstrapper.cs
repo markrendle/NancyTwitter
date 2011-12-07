@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-
-namespace NancyTwitter
+﻿namespace NancyTwitter
 {
     using Nancy;
     using Nancy.Authentication.Forms;
@@ -20,8 +15,8 @@ namespace NancyTwitter
         protected override void RequestStartup(TinyIoC.TinyIoCContainer container, Nancy.Bootstrapper.IPipelines pipelines)
         {
             var formsAuthConfiguration =
-                new FormsAuthenticationConfiguration()
-                {
+                new FormsAuthenticationConfiguration
+                    {
                     RedirectUrl = "~/auth/twitter",
                     UserMapper = container.Resolve<IUserMapper>(),
                 };

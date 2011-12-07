@@ -17,7 +17,17 @@ namespace NancyTwitter.OAuth
             return webClient.DownloadString(uri);
         }
 
+// ReSharper disable InconsistentNaming
+        public static void DownloadStringAsync(this WebClient webClient, Uri uri, OAuthParameterSet parameterSet)
+// ReSharper restore InconsistentNaming
+        {
+            webClient.Headers.Set("Authorization", parameterSet.GetOAuthHeaderString(uri, "GET"));
+            webClient.DownloadStringAsync(uri);
+        }
+
+// ReSharper disable InconsistentNaming
         public static void UploadStringAsync(this WebClient webClient, Uri uri, string body, OAuthParameterSet parameterSet)
+// ReSharper restore InconsistentNaming
         {
             webClient.Headers.Set("Authorization", parameterSet.GetOAuthHeaderString(uri, "POST"));
             webClient.UploadStringAsync(uri, body);

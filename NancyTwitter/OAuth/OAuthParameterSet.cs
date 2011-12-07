@@ -7,9 +7,11 @@ namespace NancyTwitter.OAuth
     using System.Linq;
     using System.Security.Cryptography;
     using System.Text;
+    using System.Threading;
 
     public class OAuthParameterSet : IEnumerable<KeyValuePair<OAuthParameter, string>>
     {
+        private static readonly ThreadLocal<Random> Random = new ThreadLocal<Random>(() => new Random());
         private readonly string _consumerKey;
         private readonly string _consumerSecret;
         private readonly string _accessSecret;
@@ -46,32 +48,6 @@ namespace NancyTwitter.OAuth
             }
         }
 
-        private static string CreateNonce()
-        {
-            return new Random().Next(123456, int.MaxValue).ToString("X", CultureInfo.InvariantCulture);
-        }
-
-        public string this[OAuthParameter index]
-        {
-            get { return _parameters[index]; }
-            set { _parameters[index] = value; }
-        }
-
-        public IEnumerator<KeyValuePair<OAuthParameter, string>> GetEnumerator()
-        {
-            return _parameters.GetEnumerator();
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-
-        public void Add(OAuthParameter parameter, string value)
-        {
-            _parameters[parameter] = value;
-        }
-
         public string GetOAuthHeaderString(Uri uri, string method)
         {
             var signature = GenerateSignature(uri, method).UrlEncode();
@@ -96,7 +72,33 @@ namespace NancyTwitter.OAuth
             return builder.ToString();
         }
 
-        public string GenerateSignature(Uri uri, string method)
+        private static string CreateNonce()
+        {
+            return Random.Value.Next(123456, int.MaxValue).ToString("X", CultureInfo.InvariantCulture);
+        }
+
+        public string this[OAuthParameter index]
+        {
+            get { return _parameters[index]; }
+            set { _parameters[index] = value; }
+        }
+
+        public IEnumerator<KeyValuePair<OAuthParameter, string>> GetEnumerator()
+        {
+            return _parameters.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        public void Add(OAuthParameter parameter, string value)
+        {
+            _parameters[parameter] = value;
+        }
+
+        private string GenerateSignature(Uri uri, string method)
         {
             var hmacKeyBase = _consumerSecret.UrlEncode() + "&" + _accessSecret.UrlEncode();
             using (var hmacsha1 = new HMACSHA1(Encoding.UTF8.GetBytes(hmacKeyBase)))
@@ -108,10 +110,10 @@ namespace NancyTwitter.OAuth
             }
         }
 
-        public string GenerateSignatureBase(Uri uri, string method)
+        private string GenerateSignatureBase(Uri uri, string method)
         {
             _parameters[OAuthParameter.ConsumerParameter] = _consumerKey;
-            if (!_parameters.ContainsKey(OAuthParameter.Timestamp)) _parameters[OAuthParameter.Timestamp] = DateTime.UtcNow.ToUnixTime().ToString();
+            if (!_parameters.ContainsKey(OAuthParameter.Timestamp)) _parameters[OAuthParameter.Timestamp] = DateTime.UtcNow.ToUnixTime().ToString(CultureInfo.InvariantCulture);
             var stringParameter = string.Join("&", this.OrderBy(p => p.Key).ThenBy(p => p.Value).Select(kvp => string.Format(@"{0}={1}", kvp.Key, kvp.Value.UrlEncode())));
             var builder = new StringBuilder(method.ToUpperInvariant() + "&");
             builder.Append(
