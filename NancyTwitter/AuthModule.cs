@@ -2,6 +2,7 @@
 {
     using System;
     using Nancy;
+    using Nancy.Authentication.Forms;
     using Nancy.Responses;
     using OAuth;
 
@@ -15,9 +16,9 @@
         {
             Get["/twitter"] = _ => new RedirectResponse(twitter.GetAuthorizeUri(ConsumerKey, ConsumerSecret, TwitterCallback).ToString());
 
-            Get["/twitter_callback"] = _ => twitter.GetUser(ConsumerKey, ConsumerSecret,
+            Get["/twitter_callback"] = _ => this.LoginAndRedirect((Guid)twitter.GetUser(ConsumerKey, ConsumerSecret,
                                                             Request.Query.oauth_token,
-                                                            Request.Query.oauth_verifier).ScreenName;
+                                                            Request.Query.oauth_verifier).UserGuid, DateTime.Today.AddDays(1), "/secure");
         }
     }
 }
