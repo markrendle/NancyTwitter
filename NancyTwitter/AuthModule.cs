@@ -10,15 +10,24 @@
     {
         const string ConsumerKey = "";
         const string ConsumerSecret = "";
-        private static readonly Uri TwitterCallback = new Uri("http://localhost:3000/auth/twitter_callback");
+        private const string TwitterCallback = "http://localhost:3000/auth/twitter_callback";
 
         public AuthModule(ITwitter twitter) : base("/auth")
         {
-            Get["/twitter"] = _ => new RedirectResponse(twitter.GetAuthorizeUri(ConsumerKey, ConsumerSecret, TwitterCallback).ToString());
+            Get["/twitter"] = _ =>
+                                  {
+                                      string callback = TwitterCallback;
+                                      if (Request.Query.returnUrl != null)
+                                      {
+                                          callback += "?returnUrl=" + ((string) Request.Query.returnUrl).UrlEncode();
+                                      }
+                                      return new RedirectResponse(twitter.GetAuthorizeUri(ConsumerKey, ConsumerSecret, new Uri(callback)).ToString());
+                                  };
 
-            Get["/twitter_callback"] = _ => this.LoginAndRedirect((Guid)twitter.GetUser(ConsumerKey, ConsumerSecret,
-                                                            Request.Query.oauth_token,
-                                                            Request.Query.oauth_verifier).UserGuid, DateTime.Today.AddDays(1), "/secure");
+            Get["/twitter_callback"] = _ => this.LoginAndRedirect((Guid) twitter.GetUser(ConsumerKey, ConsumerSecret,
+                                                                                         Request.Query.oauth_token,
+                                                                                         Request.Query.oauth_verifier).
+                                                                             UserGuid, DateTime.Today.AddDays(1), Request.Query.returnUrl as string ?? "/");
         }
     }
 }

@@ -17,7 +17,7 @@
             var formsAuthConfiguration =
                 new FormsAuthenticationConfiguration
                     {
-                    RedirectUrl = "~/auth/twitter",
+                    RedirectUrl = "~/login",
                     UserMapper = container.Resolve<IUserMapper>(),
                 };
 

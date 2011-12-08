@@ -12,9 +12,8 @@ namespace NancyTwitter.OAuth
     public class OAuthParameterSet : IEnumerable<KeyValuePair<OAuthParameter, string>>
     {
         private static readonly ThreadLocal<Random> Random = new ThreadLocal<Random>(() => new Random());
-        private readonly string _consumerKey;
         private readonly string _consumerSecret;
-        private readonly string _accessSecret;
+        private readonly string _tokenSecret;
 
         private readonly IDictionary<OAuthParameter, string> _parameters;
 
@@ -22,54 +21,45 @@ namespace NancyTwitter.OAuth
         {
         }
 
-        public OAuthParameterSet(string consumerKey, string consumerSecret, string accessToken) : this(consumerKey, consumerSecret, accessToken, string.Empty)
+        public OAuthParameterSet(string consumerKey, string consumerSecret, string token) : this(consumerKey, consumerSecret, token, string.Empty)
         {
         }
 
-        public OAuthParameterSet(string consumerKey, string consumerSecret, string accessToken, string accessSecret)
+        public OAuthParameterSet(string consumerKey, string consumerSecret, string token, string tokenSecret)
         {
             if (consumerKey == null) throw new ArgumentNullException("consumerKey");
             if (consumerSecret == null) throw new ArgumentNullException("consumerSecret");
 
-            _consumerKey = consumerKey;
             _consumerSecret = consumerSecret;
-            _accessSecret = accessSecret ?? string.Empty;
+            _tokenSecret = tokenSecret ?? string.Empty;
             _parameters = new Dictionary<OAuthParameter, string>
                               {
-                                  {OAuthParameter.ConsumerParameter, consumerKey},
+                                  {OAuthParameter.ConsumerKey, consumerKey},
                                   {OAuthParameter.SignatureMethod, "HMAC-SHA1"},
                                   {OAuthParameter.Version, "1.0"},
                                   {OAuthParameter.Nonce, CreateNonce()}
                               };
 
-            if (!string.IsNullOrWhiteSpace(accessToken))
+            if (!string.IsNullOrWhiteSpace(token))
             {
-                _parameters.Add(OAuthParameter.Token, accessToken);
+                _parameters.Add(OAuthParameter.Token, token);
             }
         }
 
         public string GetOAuthHeaderString(Uri uri, string method)
         {
             var signature = GenerateSignature(uri, method).UrlEncode();
-            var builder = new StringBuilder(@"OAuth realm=""""");
-            builder.AppendFormat(@",oauth_consumer_key=""{0}""", _parameters[OAuthParameter.ConsumerParameter]);
-            builder.AppendFormat(@",oauth_nonce=""{0}""", _parameters[OAuthParameter.Nonce]);
-            builder.AppendFormat(@",oauth_signature_method=""{0}""", _parameters[OAuthParameter.SignatureMethod]);
-            builder.AppendFormat(@",oauth_timestamp=""{0}""", _parameters[OAuthParameter.Timestamp]);
+            var builder = BuildParameterString();
+            return @"OAuth realm=""""," + builder + string.Format(@",oauth_signature=""{0}""", signature);
+        }
 
-            if (_parameters.ContainsKey(OAuthParameter.Token))
-            {
-                builder.AppendFormat(@",oauth_token=""{0}""", _parameters[OAuthParameter.Token]);
-            }
+        private string BuildParameterString()
+        {
+            var parameters = OrderParameters()
+                .Where(kvp => kvp.Key != OAuthParameter.Callback)
+                .Select(kvp => string.Format(@"{0}=""{1}""", kvp.Key, kvp.Value));
 
-            if (_parameters.ContainsKey(OAuthParameter.Verifier))
-            {
-                builder.AppendFormat(@",oauth_verifier=""{0}""", _parameters[OAuthParameter.Verifier]);
-            }
-
-            builder.AppendFormat(@",oauth_version=""{0}""", _parameters[OAuthParameter.Version]);
-            builder.AppendFormat(@",oauth_signature=""{0}""", signature);
-            return builder.ToString();
+            return string.Join(",", parameters);
         }
 
         private static string CreateNonce()
@@ -100,27 +90,36 @@ namespace NancyTwitter.OAuth
 
         private string GenerateSignature(Uri uri, string method)
         {
-            var hmacKeyBase = _consumerSecret.UrlEncode() + "&" + _accessSecret.UrlEncode();
-            using (var hmacsha1 = new HMACSHA1(Encoding.UTF8.GetBytes(hmacKeyBase)))
+            var hash = _consumerSecret.UrlEncode() + "&" + _tokenSecret.UrlEncode();
+            using (var hasher = new HMACSHA1(Encoding.UTF8.GetBytes(hash)))
             {
                 var signatureBase = GenerateSignatureBase(uri, method);
 
-                var hash = hmacsha1.ComputeHash(Encoding.UTF8.GetBytes(signatureBase));
-                return Convert.ToBase64String(hash);
+                var signature = hasher.ComputeHash(Encoding.UTF8.GetBytes(signatureBase));
+                return Convert.ToBase64String(signature);
             }
         }
 
         private string GenerateSignatureBase(Uri uri, string method)
         {
-            _parameters[OAuthParameter.ConsumerParameter] = _consumerKey;
-            if (!_parameters.ContainsKey(OAuthParameter.Timestamp)) _parameters[OAuthParameter.Timestamp] = DateTime.UtcNow.ToUnixTime().ToString(CultureInfo.InvariantCulture);
-            var stringParameter = string.Join("&", this.OrderBy(p => p.Key).ThenBy(p => p.Value).Select(kvp => string.Format(@"{0}={1}", kvp.Key, kvp.Value.UrlEncode())));
-            var builder = new StringBuilder(method.ToUpperInvariant() + "&");
-            builder.Append(
-                uri.GetComponents(UriComponents.SchemeAndServer | UriComponents.Path, UriFormat.Unescaped).UrlEncode());
-            builder.Append('&');
-            builder.Append(stringParameter.UrlEncode());
-            return builder.ToString();
+            EnsureTimestamp();
+            var stringParameter = string.Join("&", OrderParameters().Select(kvp => string.Format(@"{0}={1}", kvp.Key, kvp.Value.UrlEncode())));
+            return string.Format("{0}&{1}&{2}",
+                                 method.ToUpperInvariant(),
+                                 uri.GetComponents(UriComponents.SchemeAndServer | UriComponents.Path,
+                                                   UriFormat.Unescaped).UrlEncode(),
+                                 stringParameter.UrlEncode());
+        }
+
+        private IEnumerable<KeyValuePair<OAuthParameter, string>> OrderParameters()
+        {
+            return this.OrderBy(p => p.Key).ThenBy(p => p.Value);
+        }
+
+        private void EnsureTimestamp()
+        {
+            if (!_parameters.ContainsKey(OAuthParameter.Timestamp))
+                _parameters[OAuthParameter.Timestamp] = DateTime.UtcNow.ToUnixTime().ToString(CultureInfo.InvariantCulture);
         }
     }
 }

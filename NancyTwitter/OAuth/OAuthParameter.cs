@@ -11,7 +11,7 @@ namespace NancyTwitter.OAuth
             _key = key;
         }
 
-        public static readonly OAuthParameter ConsumerParameter = new OAuthParameter("oauth_consumer_key");
+        public static readonly OAuthParameter ConsumerKey = new OAuthParameter("oauth_consumer_key");
         public static readonly OAuthParameter Callback = new OAuthParameter("oauth_callback");
         public static readonly OAuthParameter Timestamp = new OAuthParameter("oauth_timestamp");
         public static readonly OAuthParameter SignatureMethod = new OAuthParameter("oauth_signature_method");
